@@ -1,0 +1,66 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Connect Credit Account</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; margin: 0; padding: 16px; }
+    .card { max-width: 420px; margin: 0 auto; padding: 16px; border: 1px solid #e5e5e5; border-radius: 12px; }
+    label { display:block; margin: 8px 0 4px; font-size: 14px; }
+    input, select { width:100%; padding:10px; border:1px solid #ccc; border-radius:8px; }
+    button { margin-top: 12px; width:100%; padding:12px; border:0; background:#0f62fe; color:#fff; border-radius:8px; font-weight:600; }
+    .small { font-size:12px; color:#555; margin-top:10px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>Connect Credit Account</h2>
+    <form id="connectForm">
+      <input type="hidden" name="sessionId" value="<%= sessionId %>" />
+      <label>Provider</label>
+      <select name="provider">
+        <% providers.forEach(p => { %>
+          <option value="<%= p.id %>" <%= (selected===p.id? "selected": "") %>><%= p.name %></option>
+        <% }) %>
+      </select>
+      <label>Username</label>
+      <input name="username" required />
+      <label>Password</label>
+      <input type="password" name="password" required />
+      <label>OTP (if prompted)</label>
+      <input name="otp" placeholder="Enter one-time code if requested" />
+      <button type="submit">Continue</button>
+      <div class="small">By continuing, you confirm you are the account owner and authorize us to access and display data you already see in your portal. No credit bureau inquiry is created by this step.</div>
+    </form>
+  </div>
+
+  <script>
+    const allowedOrigin = "<%= allowedOrigin %>";
+    const form = document.getElementById("connectForm");
+    function postStatus(type, payload) {
+      try {
+        window.parent.postMessage({ source: "psb-widget", type, payload, sessionId: "<%= sessionId %>" }, allowedOrigin);
+      } catch {}
+    }
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const fd = new FormData(form);
+      postStatus("submitted");
+      const res = await fetch(`/widget/<%= sessionId %>/start`, {
+        method: "POST",
+        headers: { "Content-Type":"application/json" },
+        body: JSON.stringify({
+          provider: fd.get("provider"),
+          username: fd.get("username"),
+          password: fd.get("password"),
+          otp: fd.get("otp")
+        })
+      });
+      const json = await res.json();
+      if (json.ok) postStatus("queued");
+      else postStatus("error", json);
+    });
+  </script>
+</body>
+</html>

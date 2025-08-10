@@ -1,0 +1,28 @@
+version: "3.9"
+services:
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+  bridge:
+    build: ./bridge
+    environment:
+      - PORT=8080
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+      - REDIS_URL=redis://redis:6379
+      - BRIDGE_BASE_URL=http://localhost:8080
+      - ALLOWED_ORIGIN=${ALLOWED_ORIGIN:-http://localhost:8082}
+      - FRONTEND_BASE_URL=${FRONTEND_BASE_URL:-http://localhost:8082}
+    depends_on:
+      - redis
+    ports:
+      - "8080:8080"
+  worker:
+    build: ./worker
+    environment:
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+      - REDIS_URL=redis://redis:6379
+      - BRIDGE_BASE_URL=http://bridge:8080
+    depends_on:
+      - redis
+      - bridge

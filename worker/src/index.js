@@ -16,18 +16,29 @@ function emit(session_id, type, payload={}) {
 const w = new Worker("scrape", async job => {
   const { session_id, encCreds } = job.data;
   await emit(session_id, "started");
-  const creds = decrypt(encCreds);
-  if (creds.provider === "providerx") {
-    const data = await scrapeProviderX({ username: creds.username, password: creds.password, otp: creds.otp });
+  let creds;
+  try {
+    creds = decrypt(encCreds);
+  } catch (e) {
+    await emit(session_id, "error", { reason: "decrypt_failed" });
+    return;
+  }
+  try {
+    let data = null;
+    if (creds.provider === "providerx") {
+      data = await scrapeProviderX({ username: creds.username, password: creds.password, otp: creds.otp });
+    } else if (creds.provider === "experian") {
+      data = await scrapeExperian({ username: creds.username, password: creds.password, otp: creds.otp });
+    } else if (creds.provider === "creditkarma") {
+      data = await scrapeCreditKarma({ username: creds.username, password: creds.password, otp: creds.otp });
+    } else {
+      await emit(session_id, "error", { reason: "unknown_provider" });
+      return;
+    }
     await emit(session_id, "final", data);
-  } else if (creds.provider === "experian") {
-    const data = await scrapeExperian({ username: creds.username, password: creds.password, otp: creds.otp });
-    await emit(session_id, "final", data);
-  } else if (creds.provider === "creditkarma") {
-    const data = await scrapeCreditKarma({ username: creds.username, password: creds.password, otp: creds.otp });
-    await emit(session_id, "final", data);
-  } else {
-    await emit(session_id, "error", { reason: "unknown_provider" });
+  } finally {
+    // Clear sensitive material
+    creds = undefined;
   }
 }, { connection });
 

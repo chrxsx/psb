@@ -13,12 +13,23 @@ router.get("/widget/:id", (req, res) => {
   ];
   const pre = (req.query.provider || "").toLowerCase();
   const selected = providers.some(p=>p.id===pre) ? pre : providers[0].id;
-  res.render("widget", { sessionId: id, providers, selected, allowedOrigin: process.env.ALLOWED_ORIGIN });
+  const allowedOrigin = (process.env.FRONTEND_BASE_URL || process.env.ALLOWED_ORIGIN || "http://localhost:8082");
+  res.render("widget", { sessionId: id, providers, selected, allowedOrigin });
 });
 
 router.post("/widget/:id/start", async (req, res) => {
   const { id } = req.params;
   const { provider, username, password, otp } = req.body;
+  // Audit log without sensitive fields
+  try {
+    console.log(JSON.stringify({
+      type: "audit_widget_submit",
+      session_id: id,
+      provider,
+      ip: req.ip,
+      ts: new Date().toISOString()
+    }));
+  } catch {}
   const encCreds = encrypt({ provider, username, password, otp });
   await scrapeQueue.add("scrape", { session_id: id, encCreds });
   res.json({ ok: true });

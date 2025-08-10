@@ -13,7 +13,13 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 8080;
-const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || "http://localhost:8082";
+// Support both single and comma-separated values for origins
+const frontendBaseUrl = (process.env.FRONTEND_BASE_URL || "").trim();
+const allowedOriginEnv = (process.env.ALLOWED_ORIGIN || "http://localhost:8082").trim();
+const allowedOrigins = Array.from(new Set([
+  ...allowedOriginEnv.split(",").map(s=>s.trim()).filter(Boolean),
+  ...frontendBaseUrl.split(",").map(s=>s.trim()).filter(Boolean)
+])).filter(Boolean);
 
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "..", "views"));
@@ -26,7 +32,9 @@ app.use(helmet({
       "default-src": ["'self'"],
       "script-src": ["'self'"],
       "style-src": ["'self'", "'unsafe-inline'"],
-      "frame-ancestors": ["'self'", ALLOWED_ORIGIN],
+      // Allow embedding only by our frontends
+      "frame-ancestors": ["'self'", ...allowedOrigins],
+      // Allow XHR/fetch back to this app; frontends do not need to call the bridge directly
       "connect-src": ["'self'"],
       "img-src": ["'self'"],
       "frame-src": ["'self'"]
@@ -37,7 +45,7 @@ app.use(helmet({
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
-app.use(cors({ origin: ALLOWED_ORIGIN, credentials: true }));
+app.use(cors({ origin: allowedOrigins, credentials: true }));
 
 const limiter = rateLimit({ windowMs: 60_000, max: 120 });
 app.use(limiter);

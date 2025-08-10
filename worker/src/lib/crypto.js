@@ -1,10 +1,10 @@
 import crypto from "crypto";
 
 const keyHex = process.env.ENCRYPTION_KEY;
-if (!keyHex || keyHex.length != 64) {
-  console.warn("ENCRYPTION_KEY must be 32 bytes hex (64 chars).");
+if (!keyHex || keyHex.length !== 64 || !/^[0-9a-fA-F]{64}$/.test(keyHex)) {
+  throw new Error("ENCRYPTION_KEY must be a 32-byte hex string (64 hex chars)");
 }
-const key = Buffer.from(keyHex || "0"*64, "hex");
+const key = Buffer.from(keyHex, "hex");
 
 export function encrypt(obj) {
   const iv = crypto.randomBytes(12);

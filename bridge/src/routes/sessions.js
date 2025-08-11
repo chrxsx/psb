@@ -9,8 +9,18 @@ const router = express.Router();
 const sessions = new Map();
 const results = new Map();
 
+function requireBridgeKeyIfConfigured(req, res) {
+  const configured = (process.env.BRIDGE_BASE_ENCRYPTION_KEY || "").trim();
+  if (!configured) return true;
+  const provided = (req.get("X-Bridge-Key") || "").trim();
+  if (provided && provided === configured) return true;
+  res.status(401).json({ error: "unauthorized" });
+  return false;
+}
+
 // Create a new session (called by your backend)
 router.post("/sessions", (req, res) => {
+  if (!requireBridgeKeyIfConfigured(req, res)) return;
   const { user_id, provider_hint } = req.body || {};
   const id = nanoid();
   const created_at = new Date().toISOString();
@@ -22,6 +32,7 @@ router.post("/sessions", (req, res) => {
 
 // Receive progress/events from worker
 router.post("/sessions/:id/events", (req, res) => {
+  if (!requireBridgeKeyIfConfigured(req, res)) return;
   const { id } = req.params;
   const sess = sessions.get(id);
   if (!sess) return res.status(404).json({ error: "not_found" });
@@ -38,6 +49,7 @@ router.post("/sessions/:id/events", (req, res) => {
 
 // Get final result (polled by your backend)
 router.get("/sessions/:id/result", (req, res) => {
+  if (!requireBridgeKeyIfConfigured(req, res)) return;
   const { id } = req.params;
   const data = results.get(id);
   if (!data) return res.status(404).json({ error: "not_ready" });

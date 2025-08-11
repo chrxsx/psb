@@ -11,9 +11,12 @@ const connection = new IORedis(process.env.REDIS_URL || "redis://localhost:6379"
   enableReadyCheck: false,
 });
 const bridgeBase = process.env.BRIDGE_BASE_URL || "http://localhost:8080";
+const bridgeKey = (process.env.BRIDGE_BASE_ENCRYPTION_KEY || "").trim();
 
 function emit(session_id, type, payload={}) {
-  return axios.post(`${bridgeBase}/v1/sessions/${session_id}/events`, { type, data: payload }).catch(()=>{});
+  const headers = {};
+  if (bridgeKey) headers["X-Bridge-Key"] = bridgeKey;
+  return axios.post(`${bridgeBase}/v1/sessions/${session_id}/events`, { type, data: payload }, { headers }).catch(()=>{});
 }
 
 const w = new Worker("scrape", async job => {

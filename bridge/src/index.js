@@ -35,7 +35,7 @@ app.use(helmet({
       "style-src": ["'self'", "'unsafe-inline'"],
       // Allow embedding only by our frontends
       "frame-ancestors": ["'self'", ...allowedOrigins],
-      // Allow XHR/fetch back to this app; frontends do not need to call the bridge directly
+      // Allow XHR/fetch and EventSource back to this app
       "connect-src": ["'self'"],
       "img-src": ["'self'"],
       "frame-src": ["'self'"]

@@ -1,9 +1,9 @@
 import express from "express";
 import { encrypt } from "../lib/crypto.js";
 import { scrapeQueue } from "../lib/queue.js";
+import { addEvent } from "../lib/store.js";
 
 const router = express.Router();
-const sessions = new Map(); // demo only
 
 router.get("/widget/:id", (req, res) => {
   const { id } = req.params;
@@ -34,6 +34,7 @@ router.post("/widget/:id/start", async (req, res) => {
   } catch {}
   const encCreds = encrypt({ provider, username, password, otp });
   await scrapeQueue.add("scrape", { session_id: id, encCreds });
+  try { addEvent(id, { type: "queued", data: { provider } }); } catch {}
   res.json({ ok: true });
 });
 

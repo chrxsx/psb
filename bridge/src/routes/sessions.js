@@ -1,13 +1,8 @@
 import express from "express";
 import { nanoid } from "nanoid";
-import { encrypt } from "../lib/crypto.js";
-import { scrapeQueue } from "../lib/queue.js";
+import { sessions, results, addEvent, addSseClient, removeSseClient } from "../lib/store.js";
 
 const router = express.Router();
-
-// In-memory stores for demo (swap with DB in production)
-const sessions = new Map();
-const results = new Map();
 
 function requireBridgeKeyIfConfigured(req, res) {
   const configured = (process.env.BRIDGE_BASE_ENCRYPTION_KEY || "").trim();
@@ -25,6 +20,7 @@ router.post("/sessions", (req, res) => {
   const id = nanoid();
   const created_at = new Date().toISOString();
   sessions.set(id, { id, user_id, provider_hint, status: "created", created_at });
+  try { addEvent(id, { type: "created", data: { user_id, provider_hint } }); } catch {}
   const base = process.env.BRIDGE_BASE_URL || "http://localhost:8080";
   const iframe_url = `${base}/widget/${id}`;
   res.json({ session_id: id, iframe_url });
@@ -37,13 +33,18 @@ router.post("/sessions/:id/events", (req, res) => {
   const sess = sessions.get(id);
   if (!sess) return res.status(404).json({ error: "not_found" });
   const event = req.body;
-  // Store final result if present
+
+  // Update status and capture result if final
   if (event.type === "final") {
     results.set(id, event.data);
     sessions.set(id, { ...sess, status: "completed", completed_at: new Date().toISOString() });
   } else {
     sessions.set(id, { ...sess, status: event.type });
   }
+
+  // Record and broadcast
+  try { addEvent(id, { type: event.type, data: event.data }); } catch {}
+
   res.json({ ok: true });
 });
 
@@ -74,7 +75,7 @@ router.get("/sessions/:id/pretty", (req, res) => {
   lines.push(`# Credit Snapshot (${provider})`);
   lines.push("");
   lines.push(`**Pulled:** ${pulled_at || ""}`);
-  lines.push(`**Score:** ${score ?? "n/a"}${score_model ? " (" + score_model + ")" : ""}`);
+  lines.push(`**Score:** ${score ?? "n/a"}` + (score_model ? " (" + score_model + ")" : ""));
   lines.push("");
   lines.push(`**Accounts:** ${accounts.length} total • Open ~ ${openAccounts}`);
   lines.push(`**Total Limits:** $${Math.round(totalLimits).toLocaleString()} • **Total Balances:** $${Math.round(totalBalances).toLocaleString()} • **Utilization:** ${utilPct}%`);
@@ -105,16 +106,29 @@ router.get("/sessions/:id/pretty", (req, res) => {
 // Simple HTML rendering of the markdown (no external libs)
 router.get("/sessions/:id/pretty.html", (req, res) => {
   const { id } = req.params;
-  const mdUrl = `${req.protocol}://${req.get('host')}/v1/sessions/${id}/pretty`;
   res.send(`<!doctype html><html><head><meta charset="utf-8"><title>Credit Snapshot</title>
   <style>body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;margin:24px;max-width:800px}pre{white-space:pre-wrap}</style>
   </head><body>
   <h1>Credit Snapshot</h1>
   <pre id="md"></pre>
   <script>
-    fetch(${JSON.stringify("/v1/sessions/" )}+${JSON.stringify(id)}+${JSON.stringify("/pretty")}).then(r=>r.text()).then(t=>{document.getElementById('md').textContent=t});
+    fetch(${JSON.stringify("/v1/sessions/")}+${JSON.stringify(id)}+${JSON.stringify("/pretty")}).then(r=>r.text()).then(t=>{document.getElementById('md').textContent=t});
   </script>
   </body></html>`);
+});
+
+// Server-Sent Events stream for live status updates (unauthenticated, tied to random session id)
+router.get("/sessions/:id/stream", (req, res) => {
+  const { id } = req.params;
+  if (!sessions.has(id)) {
+    // allow widget to connect even if backend created session is not yet observed; don't error loudly
+  }
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache, no-transform");
+  res.setHeader("Connection", "keep-alive");
+  res.flushHeaders?.();
+  addSseClient(id, res);
+  req.on("close", () => removeSseClient(id, res));
 });
 
 export default router;

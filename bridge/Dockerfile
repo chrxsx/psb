@@ -10,7 +10,7 @@ RUN npm ci --omit=dev || npm i --omit=dev
 COPY src ./src
 COPY views ./views
 # If you later add static assets, uncomment:
-# COPY public ./public
+COPY public ./public
 
 ENV PORT=8080 NODE_ENV=production
 EXPOSE 8080

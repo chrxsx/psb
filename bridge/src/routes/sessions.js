@@ -22,7 +22,8 @@ router.post("/sessions", (req, res) => {
   sessions.set(id, { id, user_id, provider_hint, status: "created", created_at });
   try { addEvent(id, { type: "created", data: { user_id, provider_hint } }); } catch {}
   const base = process.env.BRIDGE_BASE_URL || "http://localhost:8080";
-  const iframe_url = `${base}/widget/${id}`;
+  const qs = provider_hint ? `?provider=${encodeURIComponent(String(provider_hint))}` : "";
+  const iframe_url = `${base}/widget/${id}${qs}`;
   res.json({ session_id: id, iframe_url });
 });
 

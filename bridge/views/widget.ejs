@@ -38,7 +38,15 @@
   </div>
 
   <script>
-    const allowedOrigin = "<%= allowedOrigin %>";
+    // Determine the parent origin dynamically from document.referrer when embedded
+    const fallbackAllowedOrigin = "<%= allowedOrigin %>";
+    let allowedOrigin = fallbackAllowedOrigin;
+    try {
+      if (document.referrer) {
+        const u = new URL(document.referrer);
+        allowedOrigin = u.origin;
+      }
+    } catch {}
     const sessionId = "<%= sessionId %>";
     const form = document.getElementById("connectForm");
     const statusEl = document.getElementById("status");

@@ -7,7 +7,7 @@ import { firstAvailable, typeIfExists, clickIfExists, navigateFirst, findScoreIn
  * Use only with explicit user consent and permission.
  */
 export async function scrapeCreditKarma({ username, password, otp }) {
-  const browser = await chromium.launch({ headless: true });
+  const browser = await chromium.launch({ headless: true, args: ['--no-sandbox','--disable-dev-shm-usage','--disable-gpu'] });
   const context = await browser.newContext();
   const page = await context.newPage();
 

@@ -6,7 +6,7 @@ import { firstAvailable, typeIfExists, clickIfExists, navigateFirst, findScoreIn
  * Prefer network capture over DOM when possible. Use only with user consent.
  */
 export async function scrapeExperian({ username, password, otp }) {
-  const browser = await chromium.launch({ headless: true });
+  const browser = await chromium.launch({ headless: true, args: ['--no-sandbox','--disable-dev-shm-usage','--disable-gpu'] });
   const context = await browser.newContext();
   const page = await context.newPage();
 

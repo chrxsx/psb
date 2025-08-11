@@ -30,7 +30,8 @@ app.use(helmet({
     useDefaults: true,
     directives: {
       "default-src": ["'self'"],
-      "script-src": ["'self'"],
+      // Allow inline scripts for the simple widget boot script
+      "script-src": ["'self'", "'unsafe-inline'"],
       "style-src": ["'self'", "'unsafe-inline'"],
       // Allow embedding only by our frontends
       "frame-ancestors": ["'self'", ...allowedOrigins],
@@ -39,13 +40,21 @@ app.use(helmet({
       "img-src": ["'self'"],
       "frame-src": ["'self'"]
     }
-  }
+  },
+  // Required for iframe embedding in some browsers/CDNs
+  crossOriginEmbedderPolicy: false,
+  // Use CSP frame-ancestors instead of X-Frame-Options
+  frameguard: false
 }));
 
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
-app.use(cors({ origin: allowedOrigins, credentials: true }));
+
+const corsOptions = { origin: allowedOrigins, credentials: true };
+app.use(cors(corsOptions));
+// Explicitly handle preflight for any route
+app.options("*", cors(corsOptions));
 
 const limiter = rateLimit({ windowMs: 60_000, max: 120 });
 app.use(limiter);

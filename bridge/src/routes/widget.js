@@ -13,7 +13,9 @@ router.get("/widget/:id", (req, res) => {
   ];
   const pre = (req.query.provider || "").toLowerCase();
   const selected = providers.some(p=>p.id===pre) ? pre : providers[0].id;
-  const allowedOrigin = (process.env.FRONTEND_BASE_URL || process.env.ALLOWED_ORIGIN || "http://localhost:8082");
+  const allowedEnv = (process.env.FRONTEND_BASE_URL || process.env.ALLOWED_ORIGIN || "http://localhost:8082");
+  // Choose the first origin if comma-separated list was provided
+  const allowedOrigin = allowedEnv.split(",").map(s=>s.trim()).filter(Boolean)[0] || "http://localhost:8082";
   res.render("widget", { sessionId: id, providers, selected, allowedOrigin });
 });
 

@@ -58,6 +58,50 @@ curl -s -X POST http://localhost:8080/v1/sessions \
 
 Embed the `iframe_url` in your app or open it directly to test the widget.
 
+## Embedding in your site
+
+1) From your backend, create a session using `/v1/sessions` and persist `session_id` and `iframe_url`.
+2) Render an `<iframe>` pointing to `iframe_url`.
+3) Listen for `postMessage` events from the iframe with `event.data.source === 'psb-widget'`.
+
+Example minimal React:
+
+```jsx
+export function CreditConnect({ iframeUrl }) {
+  useEffect(() => {
+    function onMsg(e) {
+      if (!e?.data || e.origin !== new URL(iframeUrl).origin) return;
+      const { source, type, payload, sessionId } = e.data;
+      if (source !== 'psb-widget') return;
+      // types include: 'created', 'submitted', 'queued', 'started', 'error', 'final', 'completed'
+      console.log('PSB event', { type, payload, sessionId });
+      if (type === 'final') {
+        // Optionally poll your backend for final data via /v1/sessions/:id/result if you own the bridge
+      }
+    }
+    window.addEventListener('message', onMsg);
+    return () => window.removeEventListener('message', onMsg);
+  }, [iframeUrl]);
+
+  return (
+    <iframe src={iframeUrl} title="Connect Credit" style={{ width: 420, height: 420, border: 0, borderRadius: 12 }} />
+  );
+}
+```
+
+Notes:
+- The widget now establishes an SSE connection to `/v1/sessions/:id/stream` and forwards live updates to the parent via `postMessage`.
+- Ensure `ALLOWED_ORIGIN`/`FRONTEND_BASE_URL` includes your parent origin; CSP `frame-ancestors` and CORS are enforced.
+
+## API
+
+- `POST /v1/sessions` -> `{ session_id, iframe_url }`
+- `GET /v1/sessions/:id/stream` -> Server-Sent Events stream of `{ type, data, ts }`
+- `POST /v1/sessions/:id/events` (internal, from worker) -> `{ ok: true }`
+- `GET /v1/sessions/:id/result` -> final data, or 404 `{ error: 'not_ready' }`
+- `GET /v1/sessions/:id/pretty` -> markdown summary
+- `GET /v1/sessions/:id/pretty.html` -> simple HTML wrapper
+
 ## Deployment (Railway/Render)
 - Deploy `bridge/` and `worker/` as separate services
 - Set the same `ENCRYPTION_KEY` on both services
@@ -79,4 +123,5 @@ Currently the bridge stores session statuses and results in memory. Replace with
 ## Testing
 - `GET /health` should return `{ ok: true }`
 - Create a session, open the widget, submit credentials, and observe events posted to `/v1/sessions/:id/events`
+- Listen for `postMessage` updates in your parent app while the SSE stream relays live events
 - View a pretty report at `/v1/sessions/:id/pretty.html`

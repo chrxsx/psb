@@ -45,7 +45,13 @@ export async function scrapeExperian({ username, password, otp }) {
     await typeIfExists(page, pSel, password);
     await clickIfExists(page, sSel);
 
-    if (otp) {
+    // If OTP is not provided but an OTP field appears, signal to caller
+    if (!otp) {
+      const maybeOtpSel = await firstAvailable(page, SELECTORS.otp, 12000);
+      if (maybeOtpSel) {
+        throw new Error("__OTP_REQUIRED__");
+      }
+    } else {
       const oSel = await firstAvailable(page, SELECTORS.otp, 15000);
       if (oSel) {
         await typeIfExists(page, oSel, otp);

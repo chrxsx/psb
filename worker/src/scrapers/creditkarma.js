@@ -146,7 +146,13 @@ export async function scrapeCreditKarma({ username, password, otp }) {
     await typeIfExists(page, pSel, password);
     await clickIfExists(page, sSel);
 
-    if (otp) {
+    // OTP signaling
+    if (!otp) {
+      const maybeOtpSel = await firstAvailable(page, SELECTORS.otp, 15000);
+      if (maybeOtpSel) {
+        throw new Error("__OTP_REQUIRED__");
+      }
+    } else {
       const oSel = await firstAvailable(page, SELECTORS.otp, 20000);
       if (oSel) {
         await typeIfExists(page, oSel, otp);

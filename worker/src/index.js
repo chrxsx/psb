@@ -42,6 +42,12 @@ const w = new Worker("scrape", async job => {
       return;
     }
     await emit(session_id, "final", data);
+  } catch (e) {
+    if (e && typeof e.message === "string" && e.message.includes("__OTP_REQUIRED__")) {
+      await emit(session_id, "otp_required");
+      return; // avoid failing the job so user can resubmit with OTP
+    }
+    throw e;
   } finally {
     // Clear sensitive material
     creds = undefined;

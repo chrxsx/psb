@@ -6,10 +6,11 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci --omit=dev || npm i --omit=dev
 
-# Copy only what exists
+# Copy source
 COPY src ./src
 COPY views ./views
-# If you later add static assets, uncomment:
+# Create empty public dir to satisfy static serving if not present
+RUN mkdir -p public
 COPY public ./public
 
 ENV PORT=8080 NODE_ENV=production

@@ -21,6 +21,18 @@ const allowedOrigins = Array.from(new Set([
   ...frontendBaseUrl.split(",").map(s=>s.trim()).filter(Boolean)
 ])).filter(Boolean);
 
+// Validate critical env
+if (!process.env.ENCRYPTION_KEY) {
+  console.warn("[WARN] ENCRYPTION_KEY is not set. Encryption will fail. Set a 64-hex-char key.");
+}
+if (!process.env.BRIDGE_BASE_URL) {
+  console.warn("[WARN] BRIDGE_BASE_URL not set. Using http://localhost:8080. Set this in Railway.");
+}
+if (allowedOrigins.length === 0) {
+  console.warn("[WARN] No ALLOWED_ORIGIN/FRONTEND_BASE_URL configured. Defaulting to http://localhost:8082");
+  allowedOrigins.push("http://localhost:8082");
+}
+
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "..", "views"));
 app.use("/public", express.static(path.join(__dirname, "..", "public")));
@@ -69,4 +81,7 @@ app.use((err, _req, res, _next) => {
   res.status(500).json({ error: "internal_error" });
 });
 
-app.listen(PORT, () => console.log(`Bridge listening on :${PORT}`));
+app.listen(PORT, () => {
+  console.log(`Bridge listening on :${PORT}`);
+  console.log(`[Bridge] Allowed origins for embedding: ${allowedOrigins.join(", ")}`);
+});

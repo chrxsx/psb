@@ -6,12 +6,26 @@ import { scrapeProviderX } from "./scrapers/providerX.js";
 import { scrapeExperian } from "./scrapers/experian.js";
 import { scrapeCreditKarma } from "./scrapers/creditkarma.js";
 
-const connection = new IORedis(process.env.REDIS_URL || "redis://localhost:6379", {
+if (!process.env.ENCRYPTION_KEY) {
+  console.warn("[WARN] ENCRYPTION_KEY is not set. Worker cannot decrypt credentials.");
+}
+
+const redisUrl = process.env.REDIS_URL || "redis://localhost:6379";
+const isTls = /^rediss:\/\//i.test(redisUrl);
+const rejectUnauthorized = (process.env.REDIS_TLS_REJECT_UNAUTHORIZED || "true").toLowerCase() !== "false";
+
+const connection = new IORedis(redisUrl, {
   maxRetriesPerRequest: null,
   enableReadyCheck: false,
+  ...(isTls ? { tls: { rejectUnauthorized } } : {}),
 });
+connection.on("error", (e) => console.error("[Redis] error", e?.message || e));
+
 const bridgeBase = process.env.BRIDGE_BASE_URL || "http://localhost:8080";
 const bridgeKey = (process.env.BRIDGE_BASE_ENCRYPTION_KEY || "").trim();
+
+console.log(`[Worker] Using bridge: ${bridgeBase}`);
+console.log(`[Worker] Redis URL: ${redisUrl} (TLS: ${isTls}, rejectUnauthorized: ${rejectUnauthorized})`);
 
 function emit(session_id, type, payload={}) {
   const headers = {};

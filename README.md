@@ -7,7 +7,8 @@ Services:
 ## Environment Variables
 Set these in both local and production environments:
 - `ENCRYPTION_KEY` (required): 32-byte hex key (64 hex chars) used for AES-256-GCM
-- `REDIS_URL` (required in prod): Redis connection string for BullMQ (e.g. `redis://:password@host:6379`)
+- `REDIS_URL` (required in prod): Redis connection string for BullMQ (e.g. `redis://:password@host:6379` or `rediss://...`)
+- `REDIS_TLS_REJECT_UNAUTHORIZED` (optional): set to `false` if your managed Redis uses self-signed certs
 - `BRIDGE_BASE_URL`: Public URL of the bridge service (e.g. `https://your-bridge.up.railway.app`)
 - `ALLOWED_ORIGIN`: Comma-separated list of origins allowed to embed the widget (e.g. `https://fundxng.com`)
 - `FRONTEND_BASE_URL`: The parent site origin used for postMessage target (usually your Fundxng domain)
@@ -73,7 +74,7 @@ export function CreditConnect({ iframeUrl }) {
       if (!e?.data || e.origin !== new URL(iframeUrl).origin) return;
       const { source, type, payload, sessionId } = e.data;
       if (source !== 'psb-widget') return;
-      // types include: 'created', 'submitted', 'queued', 'started', 'error', 'final', 'completed'
+      // types include: 'created', 'submitted', 'queued', 'started', 'otp_required', 'error', 'final', 'completed'
       console.log('PSB event', { type, payload, sessionId });
       if (type === 'final') {
         // Optionally poll your backend for final data via /v1/sessions/:id/result if you own the bridge
@@ -106,10 +107,13 @@ Notes:
 - Deploy `bridge/` and `worker/` as separate services
 - Set the same `ENCRYPTION_KEY` on both services
 - Configure `REDIS_URL` to your managed Redis instance
+  - If using `rediss://`, set `REDIS_TLS_REJECT_UNAUTHORIZED=false` if your provider uses self-signed certs
 - Set `BRIDGE_BASE_URL` to the deployed bridge URL
-- Set `ALLOWED_ORIGIN` and `FRONTEND_BASE_URL` to your Fundxng site origin (single origin preferred)
-- Optionally set `BRIDGE_BASE_ENCRYPTION_KEY` and ensure Supabase functions and the worker send `X-Bridge-Key`
-- If building without Docker for the worker, ensure Playwright browsers are installed: set `PLAYWRIGHT_BROWSERS_PATH=0` and run `npx playwright install --with-deps` during build. The provided `worker/Dockerfile` already includes browsers.
+- Set `ALLOWED_ORIGIN` and `FRONTEND_BASE_URL` to your site origin (single origin preferred)
+- Optionally set `BRIDGE_BASE_ENCRYPTION_KEY` and ensure your backend and the worker send `X-Bridge-Key`
+- Worker runs Playwright on Railway. The provided `worker/Dockerfile` uses the official Playwright base image including browsers
+  - For non-Docker builds, set `PLAYWRIGHT_BROWSERS_PATH=0` and run `npx playwright install --with-deps`
+  - We pass Chromium flags `--no-sandbox --disable-dev-shm-usage` to improve stability in containers
 
 ## Security & Compliance
 - Credentials are encrypted with AES-256-GCM in the bridge before queuing and decrypted only in the worker

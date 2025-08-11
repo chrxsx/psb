@@ -1,12 +1,18 @@
 import crypto from "crypto";
 
-const keyHex = process.env.ENCRYPTION_KEY;
-if (!keyHex || keyHex.length !== 64 || !/^[0-9a-fA-F]{64}$/.test(keyHex)) {
-  throw new Error("ENCRYPTION_KEY must be a 32-byte hex string (64 hex chars)");
+let cachedKey = null;
+function getKey() {
+  if (cachedKey) return cachedKey;
+  const keyHex = process.env.ENCRYPTION_KEY;
+  if (!keyHex || keyHex.length !== 64 || !/^[0-9a-fA-F]{64}$/.test(keyHex)) {
+    throw new Error("ENCRYPTION_KEY must be a 32-byte hex string (64 hex chars)");
+  }
+  cachedKey = Buffer.from(keyHex, "hex");
+  return cachedKey;
 }
-const key = Buffer.from(keyHex, "hex");
 
 export function encrypt(obj) {
+  const key = getKey();
   const iv = crypto.randomBytes(12);
   const cipher = crypto.createCipheriv("aes-256-gcm", key, iv);
   const plaintext = Buffer.from(JSON.stringify(obj), "utf8");
@@ -16,6 +22,7 @@ export function encrypt(obj) {
 }
 
 export function decrypt(b64) {
+  const key = getKey();
   const buf = Buffer.from(b64, "base64");
   const iv = buf.slice(0, 12);
   const tag = buf.slice(12, 28);

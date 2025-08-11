@@ -6,7 +6,10 @@ import { scrapeProviderX } from "./scrapers/providerX.js";
 import { scrapeExperian } from "./scrapers/experian.js";
 import { scrapeCreditKarma } from "./scrapers/creditkarma.js";
 
-const connection = new IORedis(process.env.REDIS_URL || "redis://localhost:6379");
+const connection = new IORedis(process.env.REDIS_URL || "redis://localhost:6379", {
+  maxRetriesPerRequest: null,
+  enableReadyCheck: false,
+});
 const bridgeBase = process.env.BRIDGE_BASE_URL || "http://localhost:8080";
 
 function emit(session_id, type, payload={}) {

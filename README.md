@@ -61,6 +61,7 @@ Embed the `iframe_url` in your app or open it directly to test the widget.
 - Configure `REDIS_URL` to your managed Redis instance
 - Set `BRIDGE_BASE_URL` to the deployed bridge URL
 - Set `ALLOWED_ORIGIN` and `FRONTEND_BASE_URL` to your Fundxng site origin
+- If using Railway with a monorepo, set the service Root Directory to `bridge/` for the bridge service and `worker/` for the worker service. Railway will detect the `Dockerfile` in each directory and build accordingly.
 
 ## Security & Compliance
 - Credentials are encrypted with AES-256-GCM in the bridge before queuing and decrypted only in the worker
